@@ -9,7 +9,7 @@ export async function fetchItems() {
 export async function createItem(formData) {
   const res = await fetch('/api/items', {
     method: 'POST',
-    body: formData, // FormData includes image file and fields automatically
+    body: formData,
   });
   if (!res.ok) throw new Error('Failed to add clothing item');
   return res.json();
@@ -20,7 +20,10 @@ export async function deleteItem(id) {
     method: 'DELETE',
   });
   if (!res.ok) throw new Error('Failed to delete item');
-  return res.json();
+  
+  // Safely parse JSON only if the backend sends a body back
+  const text = await res.text();
+  return text ? JSON.parse(text) : { success: true };
 }
 
 // Outfits API Calls
@@ -46,5 +49,7 @@ export async function deleteOutfit(id) {
     method: 'DELETE',
   });
   if (!res.ok) throw new Error('Failed to delete outfit');
-  return res.json();
+
+  const text = await res.text();
+  return text ? JSON.parse(text) : { success: true };
 }
