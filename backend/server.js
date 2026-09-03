@@ -1,31 +1,33 @@
 const express = require('express');
-const multer = require('multer');
 const path = require('path');
+const multer = require('multer');
+const fs = require('fs');
 const db = require('./database');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
+// Middleware
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use(express.static(path.join(__dirname, '../frontend')));
 
-app.get('/', (req, res) => {
-  res.redirect('/closet.html');
-});
+// Ensure uploads folder exists
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
 
+// Multer Storage Setup
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, 'uploads'));
-  },
+  destination: (req, file, cb) => cb(null, uploadsDir),
   filename: (req, file, cb) => {
-    const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9) + path.extname(file.originalname);
-    cb(null, uniqueName);
-  }
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  },
 });
-
 const upload = multer({ storage });
 
+// ITEMS ENDPOINTS
 app.get('/api/items', (req, res) => {
   const items = db.prepare('SELECT * FROM items ORDER BY created_at DESC').all();
   res.json(items);
@@ -33,88 +35,75 @@ app.get('/api/items', (req, res) => {
 
 app.post('/api/items', upload.single('photo'), (req, res) => {
   const { name, category } = req.body;
-
   if (!name || !category || !req.file) {
-    return res.status(400).json({ error: 'name, category, and photo are all required' });
+    return res.status(400).json({ error: 'Name, category, and photo are required.' });
   }
+  const image_path = `/uploads/${req.file.filename}`;
+  const createdAt = new Date().toISOString();
 
-  const imagePath = '/uploads/' + req.file.filename;
-
-  const result = db.prepare(
-    'INSERT INTO items (name, category, image_path, created_at) VALUES (?, ?, ?, ?)'
-  ).run(name, category, imagePath, Date.now());
-
-  const newItem = db.prepare('SELECT * FROM items WHERE id = ?').get(result.lastInsertRowid);
-  res.status(201).json(newItem);
+  // Added created_at to query to fix NOT NULL constraint error
+  const stmt = db.prepare('INSERT INTO items (name, category, image_path, created_at) VALUES (?, ?, ?, ?)');
+  const result = stmt.run(name, category, image_path, createdAt);
+  
+  res.json({ id: result.lastInsertRowid, name, category, image_path, created_at: createdAt });
 });
 
 app.delete('/api/items/:id', (req, res) => {
-  const id = req.params.id;
-
-  db.prepare('DELETE FROM outfit_items WHERE item_id = ?').run(id);
+  const { id } = req.params;
   db.prepare('DELETE FROM items WHERE id = ?').run(id);
+  res.json({ success: true });
+});
 
-  res.status(204).send();
+// OUTFITS ENDPOINTS
+app.get('/api/outfits', (req, res) => {
+  const outfits = db.prepare('SELECT * FROM outfits ORDER BY created_at DESC').all();
+  const getOutfitItems = db.prepare(`
+    SELECT i.* FROM items i
+    JOIN outfit_items oi ON i.id = oi.item_id
+    WHERE oi.outfit_id = ?
+  `);
+
+  const result = outfits.map((outfit) => ({
+    ...outfit,
+    items: getOutfitItems.all(outfit.id),
+  }));
+
+  res.json(result);
 });
 
 app.post('/api/outfits', (req, res) => {
   const { name, itemIds } = req.body;
-
   if (!name || !Array.isArray(itemIds) || itemIds.length === 0) {
-    return res.status(400).json({ error: 'name and a non-empty itemIds array are required' });
+    return res.status(400).json({ error: 'Name and at least one item are required.' });
   }
 
-  const createOutfit = db.transaction((name, itemIds) => {
-    const result = db.prepare(
-      'INSERT INTO outfits (name, created_at) VALUES (?, ?)'
-    ).run(name, Date.now());
+  const createdAt = new Date().toISOString();
+  // Added created_at timestamp to outfit creation
+  const insertOutfit = db.prepare('INSERT INTO outfits (name, created_at) VALUES (?, ?)');
+  const insertLink = db.prepare('INSERT INTO outfit_items (outfit_id, item_id) VALUES (?, ?)');
 
-    const outfitId = result.lastInsertRowid;
-    const insertLink = db.prepare('INSERT INTO outfit_items (outfit_id, item_id) VALUES (?, ?)');
-
+  const transaction = db.transaction(() => {
+    const info = insertOutfit.run(name, createdAt);
+    const outfitId = info.lastInsertRowid;
     for (const itemId of itemIds) {
       insertLink.run(outfitId, itemId);
     }
-
     return outfitId;
   });
 
-  const outfitId = createOutfit(name, itemIds);
-  const outfit = db.prepare('SELECT * FROM outfits WHERE id = ?').get(outfitId);
-  const items = db.prepare(`
-    SELECT items.* FROM items
-    JOIN outfit_items ON items.id = outfit_items.item_id
-    WHERE outfit_items.outfit_id = ?
-  `).all(outfitId);
-
-  res.status(201).json({ ...outfit, items });
-});
-
-app.get('/api/outfits', (req, res) => {
-  const outfits = db.prepare('SELECT * FROM outfits ORDER BY created_at DESC').all();
-
-  const outfitsWithItems = outfits.map((outfit) => {
-    const items = db.prepare(`
-      SELECT items.* FROM items
-      JOIN outfit_items ON items.id = outfit_items.item_id
-      WHERE outfit_items.outfit_id = ?
-    `).all(outfit.id);
-
-    return { ...outfit, items };
-  });
-
-  res.json(outfitsWithItems);
+  const newId = transaction();
+  res.json({ id: newId, name, itemIds, created_at: createdAt });
 });
 
 app.delete('/api/outfits/:id', (req, res) => {
-  const id = req.params.id;
-
-  db.prepare('DELETE FROM outfit_items WHERE outfit_id = ?').run(id);
+  const { id } = req.params;
   db.prepare('DELETE FROM outfits WHERE id = ?').run(id);
-
-  res.status(204).send();
+  res.json({ success: true });
 });
 
+// Serve static frontend files (if built)
+app.use(express.static(path.join(__dirname, '../frontend/dist')));
+
 app.listen(PORT, () => {
-  console.log(`Server listening on http://localhost:${PORT}`);
+  console.log(`Server running at http://localhost:${PORT}`);
 });
