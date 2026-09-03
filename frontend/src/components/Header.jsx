@@ -34,16 +34,6 @@ export default function Header() {
           >
             Outfits
           </NavLink>
-          <NavLink
-            to="/profile"
-            className={({ isActive }) =>
-              isActive
-                ? 'text-wine underline underline-offset-8 decoration-wine decoration-2 font-semibold'
-                : 'text-inksoft transition-colors hover:text-ink'
-            }
-          >
-            Profile
-          </NavLink>
         </nav>
       </div>
     </header>
