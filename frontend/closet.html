@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Atelier · Closet</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="theme.js"></script>
+</head>
+<body class="bg-cream text-ink font-body min-h-screen">
+
+  <header class="flex items-center justify-between px-6 py-4 border-b border-line">
+    <div class="font-display text-xl tracking-wide">Atelier</div>
+    <nav class="flex gap-2 bg-white border border-line rounded-full p-1">
+      <a href="/closet.html" class="px-4 py-1.5 rounded-full text-sm bg-ink text-cream">Closet</a>
+      <a href="/outfits.html" class="px-4 py-1.5 rounded-full text-sm text-inksoft">Outfits</a>
+    </nav>
+  </header>
+
+  <main class="max-w-3xl mx-auto px-5 py-6">
+    <div class="flex justify-end mb-4">
+      <button id="open-add-modal" class="bg-ink text-cream text-sm px-4 py-2 rounded-lg">+ Add a piece</button>
+    </div>
+
+    <div class="category mb-6" data-category="Tops">
+      <h2 class="font-display italic text-lg border-b border-line pb-1 mb-3">Tops</h2>
+      <div class="items flex gap-3 overflow-x-auto pb-2"></div>
+    </div>
+    <div class="category mb-6" data-category="Bottoms">
+      <h2 class="font-display italic text-lg border-b border-line pb-1 mb-3">Bottoms</h2>
+      <div class="items flex gap-3 overflow-x-auto pb-2"></div>
+    </div>
+    <div class="category mb-6" data-category="Dresses">
+      <h2 class="font-display italic text-lg border-b border-line pb-1 mb-3">Dresses</h2>
+      <div class="items flex gap-3 overflow-x-auto pb-2"></div>
+    </div>
+    <div class="category mb-6" data-category="Outerwear">
+      <h2 class="font-display italic text-lg border-b border-line pb-1 mb-3">Outerwear</h2>
+      <div class="items flex gap-3 overflow-x-auto pb-2"></div>
+    </div>
+    <div class="category mb-6" data-category="Shoes">
+      <h2 class="font-display italic text-lg border-b border-line pb-1 mb-3">Shoes</h2>
+      <div class="items flex gap-3 overflow-x-auto pb-2"></div>
+    </div>
+    <div class="category mb-6" data-category="Bags">
+      <h2 class="font-display italic text-lg border-b border-line pb-1 mb-3">Bags</h2>
+      <div class="items flex gap-3 overflow-x-auto pb-2"></div>
+    </div>
+    <div class="category mb-6" data-category="Accessories">
+      <h2 class="font-display italic text-lg border-b border-line pb-1 mb-3">Accessories</h2>
+      <div class="items flex gap-3 overflow-x-auto pb-2"></div>
+    </div>
+  </main>
+
+  <div id="add-modal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4">
+    <div class="bg-cream rounded-xl w-full max-w-sm p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-display text-lg">Add a piece</h3>
+        <button id="close-add-modal" class="text-inksoft">&times;</button>
+      </div>
+
+      <form id="add-form" class="space-y-3">
+        <label class="block cursor-pointer">
+          <div id="photo-preview-box" class="h-36 border border-dashed border-line rounded-lg flex items-center justify-center text-sm text-inksoft overflow-hidden">
+            Choose a photo
+          </div>
+          <input id="photo-input" type="file" accept="image/*" class="hidden" />
+        </label>
+
+        <input id="name-input" type="text" placeholder="Name (e.g. Blue chambray shirt)"
+          class="w-full border border-line bg-white rounded-lg px-3 py-2 text-sm" />
+
+        <select id="category-input" class="w-full border border-line bg-white rounded-lg px-3 py-2 text-sm">
+          <option>Tops</option>
+          <option>Bottoms</option>
+          <option>Dresses</option>
+          <option>Outerwear</option>
+          <option>Shoes</option>
+          <option>Bags</option>
+          <option>Accessories</option>
+        </select>
+
+        <p id="add-error" class="text-wine text-xs hidden"></p>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" id="cancel-add" class="px-4 py-2 text-sm border border-line rounded-lg">Cancel</button>
+          <button type="submit" id="submit-add" class="px-4 py-2 text-sm bg-ink text-cream rounded-lg">Save piece</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="closet.js"></script>
+</body>
+</html>
