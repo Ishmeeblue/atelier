@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <!-- Background -->
+  <rect width="512" height="512" rx="112" fill="#581825"/>
+  
+  <!-- Outer Accent Ring -->
+  <circle cx="256" cy="256" r="210" fill="none" stroke="#D4C5B9" stroke-width="2" stroke-opacity="0.35"/>
+  
+  <!-- Hanger Hook Accent -->
+  <path d="M 256 148 C 272 148, 280 132, 270 116 C 260 100, 252 106, 256 90 C 258 80, 270 80, 272 92" 
+        fill="none" stroke="#E8E2D9" stroke-width="8" stroke-linecap="round"/>
+        
+  <!-- Monogram A / Hanger Frame -->
+  <path d="M 160 360 L 256 160 L 352 360" fill="none" stroke="#F7F4EF" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Curved Crossbar -->
+  <path d="M 188 290 Q 256 318 324 290" fill="none" stroke="#D4C5B9" stroke-width="8" stroke-linecap="round"/>
+  
+  <!-- Focal Dot -->
+  <circle cx="256" cy="225" r="7" fill="#E8E2D9"/>
+  
+  <!-- Brand Name -->
+  <text x="256" y="420" font-family="'Didot', 'Playfair Display', 'Georgia', serif" font-size="32" font-weight="600" fill="#E8E2D9" text-anchor="middle" letter-spacing="7">ATELIER</text>
+</svg>
