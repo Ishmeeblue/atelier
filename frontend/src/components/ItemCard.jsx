@@ -1,34 +1,44 @@
-export default function ItemCard({ item, onDelete }) {
+export default function ItemCard({ item, onDelete, onClick }) {
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-md border border-line bg-white shadow-sm transition-all hover:shadow-md">
-      {/* Image Container */}
-      <div className="aspect-[3/4] w-full overflow-hidden bg-cream/50">
+    <div 
+      onClick={onClick}
+      className="group relative flex flex-col overflow-hidden rounded-lg border border-line bg-white shadow-sm transition-all hover:shadow-md cursor-pointer"
+    >
+      {/* Item Image */}
+      <div className="relative aspect-square w-full overflow-hidden bg-cream/20">
         <img
           src={item.image_path}
           alt={item.name}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
         />
+        
+        {/* Delete Button (stops propagation so clicking delete doesn't open the preview) */}
+        {onDelete && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(item.id);
+            }}
+            className="absolute top-2 right-2 rounded-full bg-white/80 p-1.5 text-inksoft shadow hover:bg-red-50 hover:text-red-600 transition-colors"
+            title="Delete item"
+          >
+            ✕
+          </button>
+        )}
       </div>
 
-      {/* Info Container */}
-      <div className="flex flex-col justify-between p-3">
-        <span className="text-xs font-medium uppercase tracking-wider text-inksoft">
+      {/* Item Details */}
+      <div className="flex flex-col p-3 font-body">
+        <span className="text-xs font-medium text-wine uppercase tracking-wider">
           {item.category}
-          {item.subcategory ? ` · ${item.subcategory}` : ''}
         </span>
-        <h3 className="truncate font-display text-base font-medium text-ink">
+        <h3 className="font-display text-sm font-semibold text-ink truncate mt-0.5">
           {item.name}
         </h3>
+        <span className="text-xs text-inksoft truncate mt-0.5">
+          {item.subcategory || 'Unsorted'}
+        </span>
       </div>
-
-      {/* Delete Button (Appears on Hover) */}
-      <button
-        onClick={() => onDelete(item.id)}
-        className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-cream/90 text-wine opacity-0 shadow-sm transition-opacity hover:bg-wine hover:text-cream group-hover:opacity-100"
-        title="Delete Item"
-      >
-        ✕
-      </button>
     </div>
   );
 }

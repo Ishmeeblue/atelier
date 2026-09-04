@@ -1,33 +1,37 @@
 import { useState, useEffect } from 'react';
+import { fetchItems, createItem, deleteItem } from '../services/api';
 import ItemCard from '../components/ItemCard';
 import AddItemModal from '../components/AddItemModal';
-import { fetchItems, createItem, deleteItem } from '../services/api';
+import ItemPreviewModal from '../components/ItemPreviewModal';
 import { CATEGORIES, SUBCATEGORIES } from '../constants/categories';
-
-const FILTER_CATEGORIES = ['All', ...CATEGORIES];
 
 export default function Closet() {
   const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedSubcategory, setSelectedSubcategory] = useState('All');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [previewItem, setPreviewItem] = useState(null);
 
   useEffect(() => {
-    const loadItems = async () => {
-      try {
-        const data = await fetchItems();
-        console.log('Fetched items structure:', data);
-        setItems(data);
-      } catch (err) {
-        console.error('Failed to load clothing items:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     loadItems();
   }, []);
+
+  const loadItems = async () => {
+    try {
+      setLoading(true);
+      const data = await fetchItems();
+      setItems(data);
+      setError('');
+    } catch (err) {
+      setError(err.message || 'Failed to load closet items');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAddItem = async (formData) => {
     const newItem = await createItem(formData);
@@ -37,84 +41,72 @@ export default function Closet() {
   const handleDeleteItem = async (id) => {
     try {
       await deleteItem(id);
-      setItems((prev) => prev.filter((item) => Number(item.id) !== Number(id)));
+      setItems((prev) => prev.filter((item) => item.id !== id));
+      if (previewItem && previewItem.id === id) {
+        setPreviewItem(null);
+      }
     } catch (err) {
-      console.error('Failed to delete item:', err);
+      alert(err.message || 'Failed to delete item');
     }
   };
 
-  const handleCategoryChange = (cat) => {
-    setSelectedCategory(cat);
-    setSelectedSubcategory('All');
-  };
-
-  // Case-insensitive filtering supporting both subcategory and sub_category database keys
+  // Filter logic based on category and subcategory
   const filteredItems = items.filter((item) => {
-    const itemCat = (item.category || '').trim().toLowerCase();
-    const itemSub = (item.subcategory || item.sub_category || '').trim().toLowerCase();
-
-    const targetCat = selectedCategory.trim().toLowerCase();
-    const targetSub = selectedSubcategory.trim().toLowerCase();
-
-    const matchCategory = selectedCategory === 'All' || itemCat === targetCat;
-    const matchSubcategory = selectedSubcategory === 'All' || itemSub === targetSub;
-
-    return matchCategory && matchSubcategory;
+    if (selectedCategory !== 'All' && item.category !== selectedCategory) {
+      return false;
+    }
+    if (selectedSubcategory !== 'All' && item.subcategory !== selectedSubcategory) {
+      return false;
+    }
+    return true;
   });
 
-  const isGrouped = selectedCategory !== 'All' && selectedSubcategory === 'All';
-  let groupedSections = [];
-
-  if (isGrouped) {
-    const subcats = SUBCATEGORIES[selectedCategory] || [];
-    groupedSections = subcats
-      .map((sub) => ({
-        label: sub,
-        items: filteredItems.filter((item) => {
-          const itemSub = (item.subcategory || item.sub_category || '').trim().toLowerCase();
-          return itemSub === sub.trim().toLowerCase();
-        }),
-      }))
-      .filter((section) => section.items.length > 0);
-
-    const unsorted = filteredItems.filter((item) => {
-      const itemSub = (item.subcategory || item.sub_category || '').trim().toLowerCase();
-      return !itemSub || !subcats.some((s) => s.trim().toLowerCase() === itemSub);
-    });
-
-    if (unsorted.length > 0) {
-      groupedSections.push({ label: 'Unsorted', items: unsorted });
-    }
-  }
+  const availableSubcategories = selectedCategory === 'All' 
+    ? [] 
+    : (SUBCATEGORIES[selectedCategory] || []);
 
   return (
-    <div className="mx-auto max-w-6xl px-8 py-10 font-body">
-      {/* Top Header & Action */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mx-auto max-w-7xl px-4 py-8 font-body">
+      {/* Header & Add Button */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-line pb-6">
         <div>
-          <h1 className="font-display text-3xl font-semibold text-ink">Welcome to Your Closet!</h1>
-          <p className="mt-1 text-sm text-inksoft">
-            Browse and organize your individual wardrobe pieces.
-          </p>
+          <h1 className="font-display text-3xl font-bold text-ink">My Closet</h1>
+          <p className="text-sm text-inksoft mt-1">Manage your wardrobe items and collections</p>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
-          className="self-start rounded-md bg-wine px-5 py-2.5 text-sm font-medium text-cream shadow-sm transition-opacity hover:opacity-90 sm:self-auto"
+          onClick={() => setIsAddModalOpen(true)}
+          className="inline-flex items-center justify-center rounded-md bg-wine px-4 py-2.5 text-xs font-medium text-cream shadow-sm hover:opacity-90 transition-opacity"
         >
           + Add New Item
         </button>
       </div>
 
-      {/* Main Category Filter Tabs */}
-      <div className="mt-8 flex flex-wrap gap-2 border-b border-line pb-4">
-        {FILTER_CATEGORIES.map((cat) => (
+      {/* Category Filter Tabs */}
+      <div className="mt-6 flex flex-wrap gap-2 border-b border-line pb-4">
+        <button
+          onClick={() => {
+            setSelectedCategory('All');
+            setSelectedSubcategory('All');
+          }}
+          className={`rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${
+            selectedCategory === 'All'
+              ? 'bg-wine text-cream'
+              : 'bg-line/20 text-ink hover:bg-line/40'
+          }`}
+        >
+          All Items
+        </button>
+        {CATEGORIES.map((cat) => (
           <button
             key={cat}
-            onClick={() => handleCategoryChange(cat)}
+            onClick={() => {
+              setSelectedCategory(cat);
+              setSelectedSubcategory('All');
+            }}
             className={`rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${
               selectedCategory === cat
-                ? 'bg-ink text-cream'
-                : 'bg-white text-inksoft hover:bg-line/30 hover:text-ink'
+                ? 'bg-wine text-cream'
+                : 'bg-line/20 text-ink hover:bg-line/40'
             }`}
           >
             {cat}
@@ -122,27 +114,28 @@ export default function Closet() {
         ))}
       </div>
 
-      {/* Subcategory (Type) Filter Tabs */}
-      {selectedCategory !== 'All' && (
-        <div className="mt-4 flex flex-wrap gap-2 border-b border-line pb-4">
+      {/* Subcategory Filter (shows if a category with subcategories is selected) */}
+      {selectedCategory !== 'All' && availableSubcategories.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-2 items-center">
+          <span className="text-xs font-medium text-inksoft mr-2">Subcategory:</span>
           <button
             onClick={() => setSelectedSubcategory('All')}
-            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+            className={`rounded-md px-3 py-1 text-xs transition-colors ${
               selectedSubcategory === 'All'
-                ? 'bg-inksoft border-inksoft text-cream'
-                : 'bg-white border-line text-inksoft hover:bg-line/20 hover:text-ink'
+                ? 'bg-ink text-cream'
+                : 'bg-line/10 text-ink hover:bg-line/30'
             }`}
           >
-            All {selectedCategory}
+            All
           </button>
-          {SUBCATEGORIES[selectedCategory]?.map((sub) => (
+          {availableSubcategories.map((sub) => (
             <button
               key={sub}
               onClick={() => setSelectedSubcategory(sub)}
-              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+              className={`rounded-md px-3 py-1 text-xs transition-colors ${
                 selectedSubcategory === sub
-                  ? 'bg-inksoft border-inksoft text-cream'
-                  : 'bg-white border-line text-inksoft hover:bg-line/20 hover:text-ink'
+                  ? 'bg-ink text-cream'
+                  : 'bg-line/10 text-ink hover:bg-line/30'
               }`}
             >
               {sub}
@@ -151,41 +144,50 @@ export default function Closet() {
         </div>
       )}
 
-      {/* Items Grid */}
-      {isLoading ? (
-        <div className="py-20 text-center text-sm text-inksoft">Loading your closet...</div>
-      ) : filteredItems.length === 0 ? (
-        <div className="py-20 text-center">
-          <p className="text-base text-inksoft">No items found in this category.</p>
+      {/* Error / Loading / Content Grid */}
+      {error && (
+        <div className="mt-6 rounded-md bg-red-50 p-4 text-sm text-red-600">
+          {error}
         </div>
-      ) : isGrouped ? (
-        <div className="mt-8 space-y-8">
-          {groupedSections.map((section) => (
-            <div key={section.label}>
-              <h2 className="font-display italic text-sm text-inksoft border-b border-line pb-1 mb-3">
-                {section.label}
-              </h2>
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                {section.items.map((item) => (
-                  <ItemCard key={item.id} item={item} onDelete={handleDeleteItem} />
-                ))}
-              </div>
-            </div>
-          ))}
+      )}
+
+      {loading ? (
+        <div className="mt-12 text-center text-sm text-inksoft">Loading your closet...</div>
+      ) : filteredItems.length === 0 ? (
+        <div className="mt-16 flex flex-col items-center justify-center rounded-lg border border-dashed border-line p-12 text-center">
+          <p className="text-sm text-inksoft">No items found in this view.</p>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="mt-4 rounded-md bg-wine/10 px-4 py-2 text-xs font-medium text-wine hover:bg-wine/20"
+          >
+            Add your first item
+          </button>
         </div>
       ) : (
-        <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {filteredItems.map((item) => (
-            <ItemCard key={item.id} item={item} onDelete={handleDeleteItem} />
+            <ItemCard
+              key={item.id}
+              item={item}
+              onDelete={handleDeleteItem}
+              onClick={() => setPreviewItem(item)}
+            />
           ))}
         </div>
       )}
 
       {/* Add Item Modal */}
       <AddItemModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
         onAdd={handleAddItem}
+      />
+
+      {/* Item Preview Modal */}
+      <ItemPreviewModal
+        item={previewItem}
+        onClose={() => setPreviewItem(null)}
+        onDelete={handleDeleteItem}
       />
     </div>
   );
