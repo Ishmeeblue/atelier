@@ -49,9 +49,42 @@ app.post('/api/items', upload.single('photo'), (req, res) => {
 });
 
 app.delete('/api/items/:id', (req, res) => {
-  const { id } = req.params;
-  db.prepare('DELETE FROM items WHERE id = ?').run(id);
-  res.json({ success: true });
+  // Ensure the ID is treated as an integer by SQLite
+  const id = parseInt(req.params.id, 10);
+
+  try {
+    // 1. Fetch item to get the image path before deleting
+    const item = db.prepare('SELECT * FROM items WHERE id = ?').get(id);
+    if (!item) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
+
+    // 2. Transaction: Remove outfit links, then remove item
+    const deleteTransaction = db.transaction((itemId) => {
+      db.prepare('DELETE FROM outfit_items WHERE item_id = ?').run(itemId);
+      db.prepare('DELETE FROM items WHERE id = ?').run(itemId);
+    });
+    
+    // Execute the transaction
+    deleteTransaction(id);
+
+    // 3. Delete physical image file from the disk
+    if (item.image_path) {
+      const filename = path.basename(item.image_path);
+      const filePath = path.join(uploadsDir, filename);
+
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    res.json({ success: true, id });
+  } catch (error) {
+    console.error('--- BACKEND ERROR DELETING ITEM ---');
+    console.error(error);
+    // Send exact error message to the browser for debugging
+    res.status(500).json({ error: error.message || 'Failed to delete item' });
+  }
 });
 
 // OUTFITS ENDPOINTS
@@ -78,7 +111,6 @@ app.post('/api/outfits', (req, res) => {
   }
 
   const createdAt = new Date().toISOString();
-  // Added created_at timestamp to outfit creation
   const insertOutfit = db.prepare('INSERT INTO outfits (name, created_at) VALUES (?, ?)');
   const insertLink = db.prepare('INSERT INTO outfit_items (outfit_id, item_id) VALUES (?, ?)');
 
@@ -96,9 +128,22 @@ app.post('/api/outfits', (req, res) => {
 });
 
 app.delete('/api/outfits/:id', (req, res) => {
-  const { id } = req.params;
-  db.prepare('DELETE FROM outfits WHERE id = ?').run(id);
-  res.json({ success: true });
+  const id = parseInt(req.params.id, 10);
+
+  try {
+    const deleteTransaction = db.transaction((outfitId) => {
+      db.prepare('DELETE FROM outfit_items WHERE outfit_id = ?').run(outfitId);
+      db.prepare('DELETE FROM outfits WHERE id = ?').run(outfitId);
+    });
+    
+    deleteTransaction(id);
+    
+    res.json({ success: true, id });
+  } catch (error) {
+    console.error('--- BACKEND ERROR DELETING OUTFIT ---');
+    console.error(error);
+    res.status(500).json({ error: error.message || 'Failed to delete outfit' });
+  }
 });
 
 // Serve static frontend files (if built)
