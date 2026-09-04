@@ -153,7 +153,21 @@ app.post('/api/outfits', (req, res) => {
     });
 
     const newId = transaction();
-    res.status(201).json({ id: newId, name, itemIds, created_at: createdAt });
+
+    // Fetch the full item objects for this new outfit so the frontend state matches GET /api/outfits
+    const getOutfitItems = db.prepare(`
+      SELECT i.* FROM items i
+      JOIN outfit_items oi ON i.id = oi.item_id
+      WHERE oi.outfit_id = ?
+    `);
+    const createdItems = getOutfitItems.all(newId);
+
+    res.status(201).json({ 
+      id: newId, 
+      name, 
+      items: createdItems, 
+      created_at: createdAt 
+    });
   } catch (error) {
     console.error('--- BACKEND ERROR CREATING OUTFIT ---', error);
     res.status(500).json({ error: error.message || 'Failed to create outfit' });
