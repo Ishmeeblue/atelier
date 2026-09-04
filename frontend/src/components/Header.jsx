@@ -6,12 +6,12 @@ export default function Header() {
       <div className="mx-auto flex max-w-6xl items-center justify-between">
         <Link to="/" className="flex items-center gap-3 group">
           <img 
-            src="/atelier/frontend/public/Atelier Logo.png" 
+            src="/Atelier Logo.png" 
             alt="Atelier Logo" 
             className="h-9 w-9 object-contain transition-transform group-hover:scale-105" 
           />
           <span className="font-display text-2xl font-semibold text-ink tracking-wide">
-            Atelier
+            ATELIER
           </span>
         </Link>
 
