@@ -1,115 +1,150 @@
 import { useState, useEffect } from 'react';
 import { fetchOutfits, deleteOutfit, fetchItems, createOutfit } from '../services/api';
 import AddOutfitModal from '../components/AddOutfitModal';
+import OutfitPreviewModal from '../components/OutfitPreviewModal';
 
 export default function Outfits() {
   const [outfits, setOutfits] = useState([]);
-  const [closetItems, setClosetItems] = useState([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [fetchedOutfits, fetchedItems] = await Promise.all([
-          fetchOutfits(),
-          fetchItems(),
-        ]);
-        setOutfits(fetchedOutfits);
-        setClosetItems(fetchedItems);
-      } catch (err) {
-        console.error('Failed to load outfits data:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [previewOutfit, setPreviewOutfit] = useState(null);
 
-    loadData();
-  }, []);
-
-  const handleAddOutfit = async (outfitData) => {
-    setIsLoading(true);
-    await createOutfit(outfitData);
+  async function loadData() {
     try {
-      const [fetchedOutfits, fetchedItems] = await Promise.all([
+      setLoading(true);
+      const [outfitsData, itemsData] = await Promise.all([
         fetchOutfits(),
         fetchItems(),
       ]);
-      setOutfits(fetchedOutfits);
-      setClosetItems(fetchedItems);
+      setOutfits(outfitsData);
+      setItems(itemsData);
+      setError('');
     } catch (err) {
-      console.error('Failed to reload outfits data:', err);
+      setError(err.message || 'Failed to load outfits');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadData();
+  }, []);
+
+  const handleOpenAddModal = async () => {
+    try {
+      const itemsData = await fetchItems();
+      setItems(itemsData);
+    } catch (err) {
+      console.error('Failed to refresh items list', err);
+    }
+    setIsAddModalOpen(true);
+  };
+
+  const handleCreateOutfit = async (outfitData) => {
+    await createOutfit(outfitData);
+    loadData();
   };
 
   const handleDeleteOutfit = async (id) => {
     try {
       await deleteOutfit(id);
-      setOutfits((prev) => prev.filter((outfit) => Number(outfit.id) !== Number(id)));
+      setOutfits((prev) => prev.filter((o) => o.id !== id));
+      if (previewOutfit && previewOutfit.id === id) {
+        setPreviewOutfit(null);
+      }
     } catch (err) {
-      console.error('Failed to delete outfit:', err);
+      alert(err.message || 'Failed to delete outfit');
     }
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-8 py-10 font-body">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mx-auto max-w-7xl px-4 py-8 font-body">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-line pb-6">
         <div>
-          <h1 className="font-display text-3xl font-semibold text-ink">Your Outfits</h1>
-          <p className="mt-1 text-sm text-inksoft">
-            Mix and match your closet items into ready-to-wear looks.
-          </p>
+          <h1 className="font-display text-3xl font-bold text-ink">My Outfits</h1>
+          <p className="text-sm text-inksoft mt-1">Combine your closet items into signature looks</p>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
-          className="self-start rounded-md bg-wine px-5 py-2.5 text-sm font-medium text-cream shadow-sm transition-opacity hover:opacity-90 sm:self-auto"
+          onClick={handleOpenAddModal}
+          className="inline-flex items-center justify-center rounded-md bg-wine px-4 py-2.5 text-xs font-medium text-cream shadow-sm hover:opacity-90 transition-opacity"
         >
           + Create Outfit
         </button>
       </div>
 
-      {isLoading ? (
-        <div className="py-20 text-center text-sm text-inksoft">Loading your outfits...</div>
+      {error && (
+        <div className="mt-6 rounded-md bg-red-50 p-4 text-sm text-red-600">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="mt-12 text-center text-sm text-inksoft">Loading your outfits...</div>
       ) : outfits.length === 0 ? (
-        <div className="py-20 text-center">
-          <p className="text-base text-inksoft">No outfits created yet.</p>
+        <div className="mt-16 flex flex-col items-center justify-center rounded-lg border border-dashed border-line p-12 text-center">
+          <p className="text-sm text-inksoft">No outfits created yet.</p>
+          <button
+            onClick={handleOpenAddModal}
+            className="mt-4 rounded-md bg-wine/10 px-4 py-2 text-xs font-medium text-wine hover:bg-wine/20"
+          >
+            Create your first outfit
+          </button>
         </div>
       ) : (
-        <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {outfits.map((outfit) => (
-            <div key={outfit.id} className="group relative flex flex-col overflow-hidden rounded-md border border-line bg-white shadow-sm">
-              <div className="border-b border-line bg-cream/30 p-4">
-                <h3 className="font-display text-lg font-medium text-ink">{outfit.name}</h3>
-                <p className="text-xs text-inksoft">{outfit.items?.length || 0} items</p>
-              </div>
-              
-              <div className="flex flex-wrap gap-2 p-4">
-                {outfit.items?.map((item) => (
-                  <div key={item.id} className="h-20 w-16 overflow-hidden rounded border border-line">
-                    <img src={item.image_path} alt={item.name} className="h-full w-full object-cover" title={item.name} />
-                  </div>
-                ))}
+            <div
+              key={outfit.id}
+              onClick={() => setPreviewOutfit(outfit)}
+              className="group flex flex-col overflow-hidden rounded-lg border border-line bg-white shadow-sm transition-all hover:shadow-md cursor-pointer p-4"
+            >
+              <div className="flex items-center justify-between border-b border-line/50 pb-3">
+                <h3 className="font-display text-base font-semibold text-ink truncate">
+                  {outfit.name}
+                </h3>
+                <span className="text-xs text-inksoft bg-line/20 px-2 py-0.5 rounded-full">
+                  {outfit.items?.length || 0} items
+                </span>
               </div>
 
-              <button
-                onClick={() => handleDeleteOutfit(outfit.id)}
-                className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-full bg-cream/90 text-wine opacity-0 shadow-sm transition-opacity hover:bg-wine hover:text-cream group-hover:opacity-100"
-                title="Delete Outfit"
-              >
-                ✕
-              </button>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {outfit.items?.slice(0, 3).map((item) => (
+                  <div key={item.id} className="aspect-square overflow-hidden rounded bg-cream/20 border border-line/40">
+                    <img src={item.image_path} alt={item.name} className="h-full w-full object-contain" />
+                  </div>
+                ))}
+                {outfit.items?.length > 3 && (
+                  <div className="flex items-center justify-center rounded bg-cream/40 border border-line/40 text-xs font-medium text-inksoft">
+                    +{outfit.items.length - 3} more
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4 flex items-center justify-between pt-2 text-xs text-inksoft">
+                <span>Created {new Date(outfit.created_at).toLocaleDateString()}</span>
+                <span className="text-wine font-medium group-hover:underline">Open Canvas →</span>
+              </div>
             </div>
           ))}
         </div>
       )}
 
       <AddOutfitModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onAdd={handleAddOutfit}
-        closetItems={closetItems}
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSave={handleCreateOutfit}
+        items={items}
+      />
+
+      <OutfitPreviewModal
+        key={previewOutfit?.id}
+        outfit={previewOutfit}
+        onClose={() => setPreviewOutfit(null)}
+        onDelete={handleDeleteOutfit}
       />
     </div>
   );

@@ -3,21 +3,28 @@ import { CATEGORIES, SUBCATEGORIES } from '../constants/categories';
 
 const FILTER_CATEGORIES = ['All', ...CATEGORIES];
 
-export default function AddOutfitModal({ isOpen, onClose, onAdd, closetItems = [] }) {
+export default function AddOutfitModal({ isOpen, onClose, onAdd, onSave, closetItems = [], items = [] }) {
+  // Support both 'closetItems' and 'items' prop naming conventions
+  const rawItems = closetItems.length > 0 ? closetItems : items;
+
   const [name, setName] = useState('');
   const [selectedItemIds, setSelectedItemIds] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedSubcategory, setSelectedSubcategory] = useState('All');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Hook MUST be defined before any conditional early returns
+  // Filter items case-insensitively
   const filteredItems = useMemo(() => {
-    return closetItems.filter((item) => {
-      const matchCategory = selectedCategory === 'All' || item.category === selectedCategory;
-      const matchSubcategory = selectedSubcategory === 'All' || item.subcategory === selectedSubcategory;
+    return rawItems.filter((item) => {
+      const matchCategory =
+        selectedCategory === 'All' ||
+        item.category?.toLowerCase() === selectedCategory.toLowerCase();
+      const matchSubcategory =
+        selectedSubcategory === 'All' ||
+        item.subcategory?.toLowerCase() === selectedSubcategory.toLowerCase();
       return matchCategory && matchSubcategory;
     });
-  }, [closetItems, selectedCategory, selectedSubcategory]);
+  }, [rawItems, selectedCategory, selectedSubcategory]);
 
   if (!isOpen) return null;
 
@@ -38,7 +45,20 @@ export default function AddOutfitModal({ isOpen, onClose, onAdd, closetItems = [
 
     setIsSubmitting(true);
     try {
-      await onAdd({ name, itemIds: selectedItemIds });
+      // Fallback safeguard if parent passes either onAdd or onSave
+      const saveFunc = onAdd || onSave;
+      if (typeof saveFunc !== 'function') {
+        console.error("Error: Neither 'onAdd' nor 'onSave' prop was passed to AddOutfitModal from the parent component.");
+        return;
+      }
+
+      // Pass both formats to prevent backend key mismatch issues
+      await saveFunc({ 
+        name, 
+        itemIds: selectedItemIds, 
+        item_ids: selectedItemIds 
+      });
+
       setName('');
       setSelectedItemIds([]);
       setSelectedCategory('All');
@@ -53,16 +73,16 @@ export default function AddOutfitModal({ isOpen, onClose, onAdd, closetItems = [
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4">
-      <div className="flex h-full max-h-[90vh] w-full max-w-3xl flex-col rounded-lg border border-line bg-cream shadow-lg">
+      <div className="flex h-[85vh] w-full max-w-3xl flex-col rounded-lg border border-line bg-cream shadow-lg overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-line p-5">
+        <div className="flex items-center justify-between border-b border-line p-5 bg-white shrink-0">
           <h2 className="font-display text-xl font-semibold text-ink">Create New Outfit</h2>
-          <button onClick={onClose} className="text-inksoft transition-colors hover:text-wine">✕</button>
+          <button onClick={onClose} className="text-inksoft transition-colors hover:text-wine font-bold text-lg">✕</button>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-hidden p-5 flex flex-col min-h-0 font-body">
-          <div className="mb-4">
+          <div className="mb-4 shrink-0">
             <label className="block text-xs font-medium uppercase tracking-wider text-inksoft">Outfit Name</label>
             <input
               type="text"
@@ -74,8 +94,10 @@ export default function AddOutfitModal({ isOpen, onClose, onAdd, closetItems = [
             />
           </div>
 
-          <div className="mb-2">
-            <span className="block text-xs font-medium uppercase tracking-wider text-inksoft">Select Items ({selectedItemIds.length} chosen)</span>
+          <div className="mb-2 shrink-0">
+            <span className="block text-xs font-medium uppercase tracking-wider text-inksoft">
+              Select Items ({selectedItemIds.length} chosen)
+            </span>
           </div>
 
           {/* Filters */}
@@ -97,7 +119,7 @@ export default function AddOutfitModal({ isOpen, onClose, onAdd, closetItems = [
               ))}
             </div>
 
-            {selectedCategory !== 'All' && (
+            {selectedCategory !== 'All' && SUBCATEGORIES?.[selectedCategory] && (
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -110,7 +132,7 @@ export default function AddOutfitModal({ isOpen, onClose, onAdd, closetItems = [
                 >
                   All {selectedCategory}
                 </button>
-                {SUBCATEGORIES[selectedCategory]?.map((sub) => (
+                {SUBCATEGORIES[selectedCategory].map((sub) => (
                   <button
                     key={sub}
                     type="button"
@@ -129,9 +151,11 @@ export default function AddOutfitModal({ isOpen, onClose, onAdd, closetItems = [
           </div>
 
           {/* Item Grid */}
-          <div className="flex-1 overflow-y-auto rounded-md border border-line bg-white p-3">
+          <div className="flex-1 overflow-y-auto rounded-md border border-line bg-white p-3 min-h-0">
             {filteredItems.length === 0 ? (
-              <div className="py-10 text-center text-sm text-inksoft">No items found.</div>
+              <div className="py-10 text-center text-sm text-inksoft">
+                No items found. {rawItems.length === 0 ? '(Your closet is completely empty)' : ''}
+              </div>
             ) : (
               <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
                 {filteredItems.map((item) => {
@@ -141,12 +165,15 @@ export default function AddOutfitModal({ isOpen, onClose, onAdd, closetItems = [
                       key={item.id}
                       onClick={() => toggleItem(item.id)}
                       className={`relative aspect-[3/4] cursor-pointer overflow-hidden rounded-md border-2 transition-all ${
-                        isSelected ? 'border-wine shadow-md' : 'border-transparent hover:border-line'
+                        isSelected ? 'border-wine shadow-md ring-2 ring-wine/20' : 'border-transparent hover:border-line'
                       }`}
                     >
                       <img src={item.image_path} alt={item.name} className="h-full w-full object-cover" />
+                      <div className="absolute bottom-0 inset-x-0 bg-black/40 p-1 text-center">
+                        <p className="truncate text-[10px] text-white">{item.name}</p>
+                      </div>
                       {isSelected && (
-                        <div className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-wine text-xs text-cream">
+                        <div className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-wine text-xs text-cream font-bold">
                           ✓
                         </div>
                       )}
@@ -159,21 +186,26 @@ export default function AddOutfitModal({ isOpen, onClose, onAdd, closetItems = [
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 border-t border-line p-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md border border-line px-4 py-2 text-sm font-medium text-inksoft transition-colors hover:bg-line/20"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={isSubmitting || !name || selectedItemIds.length === 0}
-            className="rounded-md bg-wine px-4 py-2 text-sm font-medium text-cream transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            {isSubmitting ? 'Saving...' : 'Save Outfit'}
-          </button>
+        <div className="flex items-center justify-between border-t border-line p-4 bg-white shrink-0">
+          <span className="text-xs text-inksoft">
+            {selectedItemIds.length} items selected
+          </span>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md border border-line px-4 py-2 text-sm font-medium text-inksoft transition-colors hover:bg-line/20"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={isSubmitting || !name || selectedItemIds.length === 0}
+              className="rounded-md bg-wine px-4 py-2 text-sm font-medium text-cream transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {isSubmitting ? 'Saving...' : 'Save Outfit'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

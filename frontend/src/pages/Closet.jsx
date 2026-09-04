@@ -16,11 +16,7 @@ export default function Closet() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [previewItem, setPreviewItem] = useState(null);
 
-  useEffect(() => {
-    loadItems();
-  }, []);
-
-  const loadItems = async () => {
+  async function loadItems() {
     try {
       setLoading(true);
       const data = await fetchItems();
@@ -31,7 +27,12 @@ export default function Closet() {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadItems();
+  }, []);
 
   const handleAddItem = async (formData) => {
     const newItem = await createItem(formData);
@@ -50,7 +51,6 @@ export default function Closet() {
     }
   };
 
-  // Filter logic based on category and subcategory
   const filteredItems = items.filter((item) => {
     if (selectedCategory !== 'All' && item.category !== selectedCategory) {
       return false;
@@ -67,7 +67,6 @@ export default function Closet() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 font-body">
-      {/* Header & Add Button */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-line pb-6">
         <div>
           <h1 className="font-display text-3xl font-bold text-ink">My Closet</h1>
@@ -81,7 +80,6 @@ export default function Closet() {
         </button>
       </div>
 
-      {/* Category Filter Tabs */}
       <div className="mt-6 flex flex-wrap gap-2 border-b border-line pb-4">
         <button
           onClick={() => {
@@ -114,7 +112,6 @@ export default function Closet() {
         ))}
       </div>
 
-      {/* Subcategory Filter (shows if a category with subcategories is selected) */}
       {selectedCategory !== 'All' && availableSubcategories.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2 items-center">
           <span className="text-xs font-medium text-inksoft mr-2">Subcategory:</span>
@@ -144,7 +141,6 @@ export default function Closet() {
         </div>
       )}
 
-      {/* Error / Loading / Content Grid */}
       {error && (
         <div className="mt-6 rounded-md bg-red-50 p-4 text-sm text-red-600">
           {error}
@@ -176,14 +172,12 @@ export default function Closet() {
         </div>
       )}
 
-      {/* Add Item Modal */}
       <AddItemModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAdd={handleAddItem}
       />
 
-      {/* Item Preview Modal */}
       <ItemPreviewModal
         item={previewItem}
         onClose={() => setPreviewItem(null)}

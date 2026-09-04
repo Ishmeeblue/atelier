@@ -1,71 +1,129 @@
-export default function OutfitPreviewModal({ isOpen, onClose, outfit }) {
-  if (!isOpen || !outfit) return null;
+import { useState, useEffect } from 'react';
 
-  const items = outfit.items || [];
+export default function OutfitPreviewModal({ outfit, onClose, onDelete }) {
+  // 1. Hooks are called unconditionally at the very top
+  const [positions, setPositions] = useState(() => {
+    const initial = {};
+    if (!outfit || !outfit.items) return initial;
+    outfit.items.forEach((item, index) => {
+      initial[item.id] = {
+        x: (index % 3) * 110 + 30,
+        y: Math.floor(index / 3) * 110 + 30,
+      };
+    });
+    return initial;
+  });
+
+  const [draggingId, setDraggingId] = useState(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  // Handle global mouse movement and release so dragging doesn't get stuck
+  useEffect(() => {
+    if (draggingId === null) return;
+
+    const handleMouseMove = (e) => {
+      setPositions((prev) => ({
+        ...prev,
+        [draggingId]: {
+          x: e.clientX - dragOffset.x,
+          y: e.clientY - dragOffset.y,
+        },
+      }));
+    };
+
+    const handleMouseUp = () => {
+      setDraggingId(null);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [draggingId, dragOffset]);
+
+  // 2. Early return comes AFTER all hooks have executed
+  if (!outfit) return null;
+
+  const handleMouseDown = (e, id) => {
+    e.stopPropagation();
+    setDraggingId(id);
+    const currentPos = positions[id] || { x: 30, y: 30 };
+    setDragOffset({
+      x: e.clientX - currentPos.x,
+      y: e.clientY - currentPos.y,
+    });
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4">
-      <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-lg border border-line bg-cream shadow-lg overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-line p-6 bg-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl font-body flex flex-col max-h-[90vh]">
+        {/* Modal Header */}
+        <div className="flex items-center justify-between border-b border-line pb-3">
           <div>
-            <h2 className="font-display text-2xl font-semibold text-ink">{outfit.name}</h2>
-            <p className="text-xs text-inksoft mt-1">
-              {items.length} {items.length === 1 ? 'piece' : 'pieces'} in this styled look
+            <h2 className="font-display text-xl font-semibold text-ink">{outfit.name}</h2>
+            <p className="text-xs text-inksoft mt-0.5">
+              Drag and arrange the clothing items freely inside the canvas below
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-inksoft transition-colors hover:text-wine font-medium text-lg"
+            className="text-inksoft hover:text-ink text-lg font-bold p-1"
           >
             ✕
           </button>
         </div>
 
-        {/* Content Body */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-            {items.map((item) => (
+        {/* Interactive Canvas Board */}
+        <div className="relative my-4 h-96 w-full overflow-hidden rounded-lg border-2 border-dashed border-line bg-cream/10 select-none">
+          <div className="absolute top-2 left-2 text-[10px] uppercase tracking-wider text-inksoft/60 pointer-events-none">
+            Outfit Canvas Board (Click & Drag pictures)
+          </div>
+
+          {outfit.items?.map((item) => {
+            const pos = positions[item.id] || { x: 30, y: 30 };
+            return (
               <div
                 key={item.id}
-                className="flex flex-col overflow-hidden rounded-md border border-line bg-white shadow-sm"
+                onMouseDown={(e) => handleMouseDown(e, item.id)}
+                style={{
+                  transform: `translate(${pos.x}px, ${pos.y}px)`,
+                  zIndex: draggingId === item.id ? 50 : 10,
+                }}
+                className="absolute cursor-grab active:cursor-grabbing w-28 h-28 select-none"
               >
-                <div className="aspect-[3/4] w-full overflow-hidden bg-cream/30">
-                  <img
-                    src={item.image_path}
-                    alt={item.name}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-                <div className="p-3">
-                  <span className="text-[10px] font-medium uppercase tracking-wider text-inksoft">
-                    {item.category}
-                  </span>
-                  <h4 className="truncate font-display text-sm font-medium text-ink">
-                    {item.name}
-                  </h4>
-                </div>
+                <img
+                  src={item.image_path}
+                  alt={item.name}
+                  className="h-full w-full object-contain pointer-events-none drop-shadow-md transition-transform hover:scale-105"
+                />
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between border-t border-line p-4 bg-white">
+        {/* Modal Footer Controls */}
+        <div className="flex items-center justify-between border-t border-line pt-4">
           <button
-            onClick={onClose}
-            className="rounded-md border border-line px-4 py-2 text-sm font-medium text-inksoft transition-colors hover:bg-line/20"
+            onClick={() => {
+              if (window.confirm(`Are you sure you want to delete outfit "${outfit.name}"?`)) {
+                onDelete(outfit.id);
+                onClose();
+              }
+            }}
+            className="rounded-md border border-red-300 px-4 py-2 text-xs font-medium text-red-600 hover:bg-red-50"
           >
-            Close
+            Delete Outfit
           </button>
           
-          {/* Placeholder for future Dress Me AI feature */}
           <button
-            disabled
-            title="Dress Me AI Virtual Try-On (Coming Soon)"
-            className="rounded-md bg-wine/40 px-5 py-2 text-sm font-medium text-cream cursor-not-allowed"
+            type="button"
+            onClick={onClose}
+            className="rounded-md bg-wine px-4 py-2 text-xs font-medium text-cream hover:opacity-90"
           >
-            ✨ Dress Me (Coming Soon)
+            Done
           </button>
         </div>
       </div>
