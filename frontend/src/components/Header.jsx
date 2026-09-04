@@ -5,9 +5,11 @@ export default function Header() {
     <header className="border-b border-line bg-cream px-8 py-6">
       <div className="mx-auto flex max-w-6xl items-center justify-between">
         <Link to="/" className="flex items-center gap-3 group">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full border border-wine font-display font-medium text-lg text-wine transition-colors group-hover:bg-wine group-hover:text-cream">
-            A
-          </div>
+          <img 
+            src="/logo.png" 
+            alt="Atelier Logo" 
+            className="h-9 w-9 object-contain transition-transform group-hover:scale-105" 
+          />
           <span className="font-display text-2xl font-semibold text-ink tracking-wide">
             Atelier
           </span>
