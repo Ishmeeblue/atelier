@@ -6,12 +6,13 @@ const db = new Database(path.join(__dirname, 'closet.db'));
 // Enable Foreign Keys
 db.pragma('foreign_keys = ON');
 
-// Create tables
+// Create tables if they don't exist
 db.exec(`
   CREATE TABLE IF NOT EXISTS items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     category TEXT NOT NULL,
+    subcategory TEXT,
     image_path TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
@@ -28,11 +29,13 @@ db.exec(`
     FOREIGN KEY (outfit_id) REFERENCES outfits (id) ON DELETE CASCADE,
     FOREIGN KEY (item_id) REFERENCES items (id) ON DELETE CASCADE
   );
-
-  CREATE TABLE IF NOT EXISTS settings (
-    key TEXT PRIMARY KEY,
-    value TEXT
-  );
 `);
+
+// Safe Migration: ensure subcategory column exists if table was already created previously
+const itemColumns = db.prepare("PRAGMA table_info(items)").all();
+const hasSubcategory = itemColumns.some((col) => col.name === 'subcategory');
+if (!hasSubcategory) {
+  db.exec('ALTER TABLE items ADD COLUMN subcategory TEXT');
+}
 
 module.exports = db;

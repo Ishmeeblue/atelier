@@ -1,17 +1,26 @@
+// frontend/src/services/api.js
+
 // Clothes Items API Calls
 
 export async function fetchItems() {
   const res = await fetch('/api/items');
-  if (!res.ok) throw new Error('Failed to fetch items');
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to fetch items');
+  }
   return res.json();
 }
 
 export async function createItem(formData) {
   const res = await fetch('/api/items', {
     method: 'POST',
-    body: formData,
+    body: formData, // Note: Do not set Content-Type header manually when using FormData
   });
-  if (!res.ok) throw new Error('Failed to add clothing item');
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to add clothing item');
+  }
   return res.json();
 }
 
@@ -19,7 +28,11 @@ export async function deleteItem(id) {
   const res = await fetch(`/api/items/${id}`, {
     method: 'DELETE',
   });
-  if (!res.ok) throw new Error('Failed to delete item');
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to delete item');
+  }
   
   // Safely parse JSON only if the backend sends a body back
   const text = await res.text();
@@ -30,7 +43,10 @@ export async function deleteItem(id) {
 
 export async function fetchOutfits() {
   const res = await fetch('/api/outfits');
-  if (!res.ok) throw new Error('Failed to fetch outfits');
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to fetch outfits');
+  }
   return res.json();
 }
 
@@ -40,7 +56,11 @@ export async function createOutfit(outfitData) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(outfitData),
   });
-  if (!res.ok) throw new Error('Failed to save outfit');
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to save outfit');
+  }
   return res.json();
 }
 
@@ -48,7 +68,11 @@ export async function deleteOutfit(id) {
   const res = await fetch(`/api/outfits/${id}`, {
     method: 'DELETE',
   });
-  if (!res.ok) throw new Error('Failed to delete outfit');
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to delete outfit');
+  }
 
   const text = await res.text();
   return text ? JSON.parse(text) : { success: true };

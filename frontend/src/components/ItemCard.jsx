@@ -14,6 +14,7 @@ export default function ItemCard({ item, onDelete }) {
       <div className="flex flex-col justify-between p-3">
         <span className="text-xs font-medium uppercase tracking-wider text-inksoft">
           {item.category}
+          {item.subcategory ? ` · ${item.subcategory}` : ''}
         </span>
         <h3 className="truncate font-display text-base font-medium text-ink">
           {item.name}
